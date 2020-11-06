@@ -103,6 +103,10 @@ RCT_REMAP_METHOD(getCastState,
                  getCastStateWithResolver: (RCTPromiseResolveBlock) resolve
                  rejecter: (RCTPromiseRejectBlock) reject) {
   dispatch_async(dispatch_get_main_queue(), ^{
+    if (GCKCastContext.sharedInstance.sessionManager.hasConnectedCastSession){
+        castSession = [GCKCastContext.sharedInstance.sessionManager currentCastSession];
+        [castSession.remoteMediaClient addListener:self];
+    }
     resolve(@([GCKCastContext.sharedInstance castState]));
   });
 }
@@ -356,12 +360,20 @@ RCT_EXPORT_METHOD(setVolume : (float)volume) {
   double position = mediaStatus.streamPosition;
   double duration = mediaStatus.mediaInformation.streamDuration;
 
+  id jsonData = mediaStatus.mediaInformation.customData;
+  NSString* data = @"{}";
+
+  if (jsonData != nil) {
+    data = jsonData[@"data"];
+  }
+  
   NSDictionary *status = @{
     @"playerState": @(mediaStatus.playerState),
     @"idleReason": @(mediaStatus.idleReason),
     @"muted": @(mediaStatus.isMuted),
     @"streamPosition": isinf(position) || isnan(position) ? [NSNull null] : @(position),
     @"streamDuration": isinf(duration) || isnan(duration) ? [NSNull null] : @(duration),
+    @"customData": data,
   };
 
   [self sendEventWithName:MEDIA_STATUS_UPDATED body:@{@"mediaStatus":status}];
